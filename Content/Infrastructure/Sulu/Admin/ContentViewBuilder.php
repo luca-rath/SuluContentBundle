@@ -16,7 +16,9 @@ namespace Sulu\Bundle\ContentBundle\Content\Infrastructure\Sulu\Admin;
 use Sulu\Bundle\AdminBundle\Admin\View\FormViewBuilderInterface;
 use Sulu\Bundle\AdminBundle\Admin\View\ToolbarAction;
 use Sulu\Bundle\AdminBundle\Admin\View\ViewBuilderFactoryInterface;
+use Sulu\Bundle\AdminBundle\Admin\View\ViewBuilderInterface;
 use Sulu\Bundle\AdminBundle\Admin\View\ViewCollection;
+use Sulu\Bundle\ContentBundle\Content\Infrastructure\Sulu\Preview\PreviewObjectProviderRegistry;
 
 class ContentViewBuilder implements ContentViewBuilderInterface
 {
@@ -25,9 +27,13 @@ class ContentViewBuilder implements ContentViewBuilderInterface
      */
     private $viewBuilderFactory;
 
-    public function __construct(ViewBuilderFactoryInterface $viewBuilderFactory)
+    /** @var PreviewObjectProviderRegistry */
+    private $previewObjectProviderRegistry;
+
+    public function __construct(ViewBuilderFactoryInterface $viewBuilderFactory, PreviewObjectProviderRegistry $previewObjectProviderRegistry)
     {
         $this->viewBuilderFactory = $viewBuilderFactory;
+        $this->previewObjectProviderRegistry = $previewObjectProviderRegistry;
     }
 
     public function build(
@@ -52,13 +58,13 @@ class ContentViewBuilder implements ContentViewBuilderInterface
         // Add views
         if (null !== $addParentView) {
             $viewCollection->add(
-                $this->buildTemplate($typeKey, $resourceKey, $addParentView, $saveToolbarAction)
+                $this->buildTemplate($typeKey, $resourceKey, $addParentView, $saveToolbarAction, false)
                     ->setEditView($editParentView)
             );
         }
 
         // Edit views
-        $viewCollection->add($this->buildTemplate($typeKey, $resourceKey, $editParentView, $saveToolbarAction));
+        $viewCollection->add($this->buildTemplate($typeKey, $resourceKey, $editParentView, $saveToolbarAction, true, $resourceKey));
         $viewCollection->add($this->buildSeo($resourceKey, $editParentView, $saveToolbarAction));
         $viewCollection->add($this->buildExcerpt($resourceKey, $editParentView, $saveToolbarAction));
     }
@@ -67,8 +73,10 @@ class ContentViewBuilder implements ContentViewBuilderInterface
         string $typeKey,
         string $resourceKey,
         string $parentView,
-        ToolbarAction $saveToolbarAction
-    ): FormViewBuilderInterface {
+        ToolbarAction $saveToolbarAction,
+        bool $preview,
+        string $previewProviderKey = null
+    ): ViewBuilderInterface {
         $formToolbarActionsWithType = [
             $saveToolbarAction,
             new ToolbarAction(
@@ -85,8 +93,13 @@ class ContentViewBuilder implements ContentViewBuilderInterface
             ),
         ];
 
-        $formViewBuilder = $this->viewBuilderFactory
-            ->createFormViewBuilder($parentView . '.content', '/content');
+        if ($preview && $this->previewObjectProviderRegistry->hasObjectProvider($previewProviderKey)) {
+            $formViewBuilder = $this->viewBuilderFactory
+                ->createPreviewFormViewBuilder($parentView . '.content', '/content');
+        } else {
+            $formViewBuilder = $this->viewBuilderFactory
+                ->createFormViewBuilder($parentView . '.content', '/content');
+        }
 
         $formViewBuilder
             ->setResourceKey($resourceKey)

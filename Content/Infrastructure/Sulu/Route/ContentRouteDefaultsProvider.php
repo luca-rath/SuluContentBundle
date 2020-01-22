@@ -61,7 +61,7 @@ class ContentRouteDefaultsProvider implements RouteDefaultsProviderInterface
      */
     public function getByEntity($entityClass, $id, $locale, $object = null)
     {
-        $entity = $object ?: $this->loadEntity($entityClass, $id, $locale);
+        $entity = $this->loadEntity($entityClass, $id, $locale);
         if (!$entity) {
             return [];
         }
